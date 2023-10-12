@@ -10,7 +10,6 @@ object ReadCSVFile {
     val configuration = new SparkConf()
       .setAppName("Read CSV File")
       .setMaster("local")
-
     val sparkContext = new SparkContext(configuration)
 
     val textFilePath = "src/main/resources/elonmusk_tweets.csv"
@@ -24,7 +23,6 @@ object ReadCSVFile {
     val rddKeywords = rddText.filter(line =>
       keywordsList.exists(keyword => line.toUpperCase.contains(keyword.toUpperCase))
     )
-
     val distributionKeywordsByDateAndNumberTimesMentioned = rddKeywords.map(line => line.split(",")(1).substring(0, 10))
                                                              .map(date => (date, 1)).reduceByKey(_ + _)
 
@@ -35,36 +33,43 @@ object ReadCSVFile {
       }
       keywordResults.foreach(println)
     }
-
     //2. the percentage of tweets that have at least one of these input keywords.
     val totalTweets = rddText.count()
     //println(totalTweets)
     val numberKeyword = rddKeywords.count()
     // println(numberKeyword)
     val percentage = (numberKeyword.toFloat / totalTweets.toFloat) * 100.00
-    print("2. The percentage of tweets that have at least one of these input keywords :   ")
-    println(percentage)
+    print(s"2. The percentage of tweets that have at least one of these input keywords :  $percentage ")
 
     // 3. the percentage of tweets that have exactly two input keywords.
     val keywordRddExactlyTwoWord = rddText.filter(line =>
       keywordsList.count(keyword => line.toUpperCase.contains(keyword.toUpperCase)) == 2
     )
-
     val numberExactlyTwoKeyword = keywordRddExactlyTwoWord.count()
     // println(numberExactlyTwoKeyword)
     val percentageExactlyTwoKeyword = (numberExactlyTwoKeyword.toFloat / totalTweets.toFloat) * 100.00
-    print("3. The percentage of tweets that have exactly two input keywords :")
-    println(percentageExactlyTwoKeyword)
+    print(s"3. The percentage of tweets that have exactly two input keywords :  $percentageExactlyTwoKeyword")
 
     //4.1. the average of the length of tweets.
-    val tweetsLength = rddKeywords.map(line => (line.split(",")(2), (line.split(",")(2).length)))
-    // println(tweetsLength.foreach(println))
-    val sumAllValues = tweetsLength.map(_._2).reduce(_ + _)
-  //  println(sumAllValues)
-    val averageOfTweets = sumAllValues.toFloat/numberKeyword.toFloat
-    print("4.1. The average of the length of tweets :  ")
-    println(averageOfTweets)
+    val tweetsLength = rddKeywords.map(line => {
+      val words = line.split(",")(2).split("\\s+")
+       (line.split(",")(2), words.length)
+    })
+     println(tweetsLength.foreach(println))
 
+     val sumAllValues = if (tweetsLength.isEmpty) {
+       throw new RuntimeException("The tweets length is Empty collection ")
+     } else {
+       tweetsLength.map(_._2).reduce(_ + _)
+     }
+     //println(sumAllValues)
+    var averageOfTweets = 0.0
+     if (numberKeyword != 0) {
+        averageOfTweets = sumAllValues.toFloat / numberKeyword.toFloat
+       println(s"4.1. The average of the length of tweets :   $averageOfTweets")
+     } else {
+       throw new ArithmeticException("Division by zero: the Number of Keyword is zero.")
+     }
     // 4.2. the standard deviation of the length of tweets .
     val lengthAllValues = rddKeywords.map(line => (line.split(",")(2), (line.split(",")(2).length))).map(_._2)
    // println(lengthAllValues.foreach(println))
@@ -73,8 +78,7 @@ object ReadCSVFile {
     val variance = squareSubtractionOfValues.sum().toFloat / numberKeyword.toFloat
     //println(variance)
     val standardDeviationOfTweets = math.sqrt(variance).toFloat
-    print("4.2. the standard deviation of the length of tweets :  ")
-    println(standardDeviationOfTweets)
+    print(s"4.2. the standard deviation of the length of tweets : $standardDeviationOfTweets ")
   }
 
 }
